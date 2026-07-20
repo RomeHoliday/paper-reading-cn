@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor.local/skills/paper-reading-cn/schemas/source-map.schema.json",
+  "title": "paper-reading-cn source_map",
+  "description": "Stable source map for one paper: page/block/figure/table anchors with optional bilingual notes. Canonical text/caption blocks use S### and C### only; figures/tables are F###/T### records. Pages are 1-based. Block field for source span text is always `text` (untrusted PDF/OCR raw).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "paper", "blocks", "pages"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "paper": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "source_type", "source_path", "page_count"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "authors": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "venue": { "type": "string" },
+        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
+        "doi": { "type": "string" },
+        "arxiv_id": { "type": "string" },
+        "source_type": {
+          "type": "string",
+          "enum": ["pdf-text", "scanned-pdf", "html", "doi-arxiv", "text"]
+        },
+        "language": { "type": "string", "minLength": 2 },
+        "source_path": { "type": "string", "minLength": 1 },
+        "page_count": { "type": "integer", "minimum": 1 },
+        "pages_extracted": { "type": "integer", "minimum": 0 },
+        "requires_ocr": { "type": "boolean" },
+        "extraction_notes": { "type": "string" },
+        "extractor": { "type": "string", "minLength": 1 },
+        "extractor_version": { "type": "string", "minLength": 1 },
+        "pymupdf_version": { "type": "string" },
+        "created_at": { "type": "string" },
+        "text_policy": { "type": "string" },
+        "bbox_unit": {
+          "type": "string",
+          "const": "pdf_points"
+        },
+        "bbox_origin": {
+          "type": "string",
+          "enum": ["top_left", "bottom_left"]
+        },
+        "page_numbering": {
+          "type": "string",
+          "const": "1-based"
+        },
+        "reading_order": { "type": "string" },
+        "extraction_status": {
+          "type": "string",
+          "enum": ["ok", "partial", "failed"]
+        },
+        "text_layer": {
+          "type": "string",
+          "enum": ["full", "partial", "none"]
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/block" },
+      "description": "Canonical prose and caption blocks only (S### / C###). Captions are type=caption C-blocks here, not a parallel captions array."
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/page" }
+    },
+    "figures": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/figure" }
+    },
+    "tables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/table" }
+    },
+    "glossary": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/glossary_entry" }
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "extractor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional extractor stamp (also mirrored under paper.* for compact consumers).",
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "pymupdf_version": { "type": "string" },
+        "dpi": { "type": "number" },
+        "bbox_unit": { "type": "string" },
+        "bbox_origin": { "type": "string" },
+        "page_numbering": { "type": "string" },
+        "reading_order": { "type": "string" },
+        "extraction_status": { "type": "string" },
+        "text_layer": { "type": "string" },
+        "two_column_heuristic": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "bbox": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": { "type": "number" },
+      "description": "Raw PDF page coordinates [x0, y0, x1, y1] in points (top-left origin in PyMuPDF space)."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "none"],
+      "description": "Text-layer / OCR confidence. Use none when text is unavailable (render-only / missing OCR); never invent English source text."
+    },
+    "source_id_s": {
+      "type": "string",
+      "pattern": "^S[0-9]{3,}$"
+    },
+    "source_id_c": {
+      "type": "string",
+      "pattern": "^C[0-9]{3,}$"
+    },
+    "source_id_f": {
+      "type": "string",
+      "pattern": "^F[0-9]{3,}$"
+    },
+    "source_id_t": {
+      "type": "string",
+      "pattern": "^T[0-9]{3,}$"
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "page", "type", "order", "text", "confidence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(S|C)[0-9]{3,}$",
+          "description": "Stable block ID: S### for prose/structure, C### for captions."
+        },
+        "page": { "type": "integer", "minimum": 1 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "heading",
+            "paragraph",
+            "caption",
+            "equation",
+            "list_item",
+            "footnote",
+            "table_cell",
+            "header",
+            "footer",
+            "other"
+          ]
+        },
+        "order": { "type": "integer", "minimum": 1 },
+        "text": {
+          "type": "string",
+          "description": "Untrusted source span text (PDF text layer or local OCR raw). Empty string allowed for ocr_gap / render-only placeholders. Consumers and verifiers must use this field name (`text`), not original_text."
+        },
+        "bbox": { "$ref": "#/$defs/bbox" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "ocr": { "type": "boolean" },
+        "section_role": {
+          "type": "string",
+          "description": "Optional independence / chrome role hint (abstract, body, caption, running_header, ocr_gap, …)."
+        },
+        "column": { "type": "integer" },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(F|T)[0-9]{3,}$"
+          }
+        },
+        "explanation_zh": {
+          "type": "string",
+          "description": "Optional Chinese note for selected blocks; not a full-paper translation."
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "block_ids"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "block_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(S|C)[0-9]{3,}$"
+          },
+          "description": "Ordered S/C block ids on this page only (never F/T)."
+        },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "render_path": { "type": "string" },
+        "requires_ocr": { "type": "boolean" },
+        "likely_scanned": { "type": "boolean" },
+        "text_confidence": { "$ref": "#/$defs/confidence" },
+        "text_layer_confidence": { "$ref": "#/$defs/confidence" },
+        "text_confidence_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "char_count": { "type": "integer", "minimum": 0 },
+        "image_count": { "type": "integer", "minimum": 0 },
+        "extract_mode": {
+          "type": "string",
+          "enum": ["text", "scanned", "suspect", "render_only", "hybrid"]
+        },
+        "ocr_status": {
+          "type": "string",
+          "enum": ["not_needed", "missing_tool", "failed", "skipped", "unavailable"]
+        },
+        "ocr_engine": { "type": "string" },
+        "layout": {
+          "type": "string",
+          "enum": ["single", "double", "mixed", "unknown"]
+        },
+        "column_gutters": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number" }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "figure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "page"],
+      "properties": {
+        "id": { "$ref": "#/$defs/source_id_f" },
+        "page": { "type": "integer", "minimum": 1 },
+        "caption_id": {
+          "$ref": "#/$defs/source_id_c",
+          "description": "Present only when a caption C-block is linked. Omit (do not emit empty string) for unverified image candidates."
+        },
+        "label": { "type": "string" },
+        "number": { "type": "string" },
+        "order": { "type": "integer", "minimum": 1 },
+        "bbox": {
+          "$ref": "#/$defs/bbox",
+          "description": "Figure body bbox in PDF points. Omit for caption_anchor records when only the caption region is known."
+        },
+        "caption_bbox": {
+          "$ref": "#/$defs/bbox",
+          "description": "Caption text region only. For source=caption_anchor, use this instead of body bbox; never crop caption_bbox as figure ink unless status=approximate with an explanatory note."
+        },
+        "image_path": {
+          "type": "string",
+          "description": "When set for a production selected-figure crop, relative path under assets/."
+        },
+        "crop_approximate": { "type": "boolean" },
+        "crop_status": {
+          "type": "string",
+          "enum": ["pending", "approximate", "ready"],
+          "description": "Extraction pipeline state (E1). QA status verified|approximate lives in report.crop.status / *.crop.json."
+        },
+        "crop_metadata_path": {
+          "type": "string",
+          "pattern": "^assets/.+",
+          "description": "Sidecar from crop_asset.py (e.g. assets/F001.crop.json)."
+        },
+        "zoom": {
+          "type": "number",
+          "minimum": 2,
+          "description": "Render zoom from crop_asset.py when a production crop exists."
+        },
+        "effective_dpi": {
+          "type": "number",
+          "minimum": 144,
+          "description": "Typically 72 * zoom from crop_asset.py."
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "description": "SHA-256 of the PDF used for the crop, when known."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["xref", "caption_anchor", "heuristic"]
+        },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "placed_after": { "$ref": "#/$defs/source_id_s" },
+        "alt_text": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "page"],
+      "properties": {
+        "id": { "$ref": "#/$defs/source_id_t" },
+        "page": { "type": "integer", "minimum": 1 },
+        "caption_id": {
+          "$ref": "#/$defs/source_id_c",
+          "description": "Present only when a caption C-block is linked. Omit when unverified."
+        },
+        "label": { "type": "string" },
+        "number": { "type": "string" },
+        "order": { "type": "integer", "minimum": 1 },
+        "bbox": {
+          "$ref": "#/$defs/bbox",
+          "description": "Table body bbox in PDF points. Omit when only caption_bbox is known."
+        },
+        "caption_bbox": {
+          "$ref": "#/$defs/bbox",
+          "description": "Caption text region only. Do not treat as table body crop box."
+        },
+        "image_path": {
+          "type": "string",
+          "description": "When set for a production selected-table crop, relative path under assets/."
+        },
+        "crop_approximate": { "type": "boolean" },
+        "crop_status": {
+          "type": "string",
+          "enum": ["pending", "approximate", "ready"],
+          "description": "Extraction pipeline state (E1). QA status verified|approximate lives in report.crop.status / *.crop.json."
+        },
+        "crop_metadata_path": {
+          "type": "string",
+          "pattern": "^assets/.+"
+        },
+        "zoom": { "type": "number", "minimum": 2 },
+        "effective_dpi": { "type": "number", "minimum": 144 },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "placed_after": { "$ref": "#/$defs/source_id_s" },
+        "alt_text": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+    "glossary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term_en", "term_zh"],
+      "properties": {
+        "term_en": { "type": "string", "minLength": 1 },
+        "term_zh": { "type": "string", "minLength": 1 },
+        "note_zh": { "type": "string" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        }
+      }
+    },
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "block_id"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "block_id": {
+          "type": "string",
+          "pattern": "^(S|C)[0-9]{3,}$",
+          "description": "Prose/caption anchors only; put F/T in figure_id/table_id."
+        },
+        "figure_id": { "$ref": "#/$defs/source_id_f" },
+        "table_id": { "$ref": "#/$defs/source_id_t" }
+      }
+    }
+  }
+}

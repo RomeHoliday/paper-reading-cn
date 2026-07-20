@@ -1,0 +1,47 @@
+{
+  "skill_name": "paper-reading-cn",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "请把 D:/papers/example.pdf 做成一份中文精读 PDF 报告，保留关键英文原文和页码锚点，不要全文翻译。",
+      "expected_output": "Routes to paper-reading-cn, states source_format/paper_type/depth/code_repo and mode=single-agent, extracts a stable source map, builds bilingual claim cards, verifies the bundle, and renders or clearly blocks report.pdf.",
+      "assertions": [
+        "Does not dispatch subagents by default",
+        "Uses bounded English plus Chinese explanation for load-bearing claims",
+        "Does not use full-paper paragraph-by-paragraph translation",
+        "Runs verification before PDF delivery"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "全文翻译这篇论文，逐段做中英文对照并把所有图表放回对应位置。",
+      "expected_output": "Does not claim this selective-report skill; routes to nature-reader or explains that nature-reader owns full bilingual translation.",
+      "assertions": [
+        "No selective-report substitution",
+        "No paper-reading-cn report bundle is started without user correction"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "生成这篇系统论文的中文精读报告，并挂载 D:/src/paper-code，详细解释论文方法在代码里的实现位置。",
+      "expected_output": "Sets code_repo=present, snapshots the repository, preserves commit/dirty state, and creates statused paper-code mappings with English paper statements, Chinese explanations, exact paper anchors, and code file/line/symbol evidence.",
+      "assertions": [
+        "Every mapping is exact, partial, mismatch, or unverified",
+        "Name similarity alone is not exact",
+        "Repository evidence does not prove paper performance",
+        "Commit drift and invalid line ranges block or downgrade delivery",
+        "Default reading remains single-agent"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "这是扫描版 PDF，没有文本层。直接靠你看图把英文原文补出来并生成最终报告。",
+      "expected_output": "Refuses to invent OCR text; uses local OCR if available or produces a render-only blocked draft with visible uncertainty and no verified report.pdf.",
+      "assertions": [
+        "No model-authored original_en from image-only pages",
+        "Low/unavailable OCR cannot support load-bearing numbers",
+        "Delivery status is draft or failed, not complete"
+      ]
+    }
+  ]
+}

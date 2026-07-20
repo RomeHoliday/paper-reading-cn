@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor.local/skills/paper-reading-cn/schemas/claim-ledger.schema.json",
+  "title": "paper-reading-cn claim_ledger",
+  "description": "Claim–evidence ledger. Separates author_claim, paper_evidence, and reader_judgment. Every claim carries English source text, Chinese explanation, exact anchors, and optional numeric provenance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "paper_slug", "claims"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "paper_slug": { "type": "string", "minLength": 1 },
+    "source_map_path": { "type": "string" },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/claim" }
+    }
+  },
+  "$defs": {
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "block_id"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "block_id": {
+          "type": "string",
+          "pattern": "^(S|C)[0-9]{3,}$"
+        },
+        "figure_id": {
+          "type": "string",
+          "pattern": "^F[0-9]{3,}$"
+        },
+        "table_id": {
+          "type": "string",
+          "pattern": "^T[0-9]{3,}$"
+        }
+      }
+    },
+    "numeric_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value", "unit", "source"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": ["number", "string"] },
+        "unit": { "type": "string", "minLength": 1 },
+        "source": {
+          "oneOf": [
+            { "$ref": "#/$defs/source_anchor" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "ref"],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["claim", "ledger_input", "external_note"]
+                },
+                "ref": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "numeric_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value", "unit", "display"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["quoted", "derived", "chart_estimate"]
+        },
+        "value": { "type": ["number", "string"] },
+        "unit": { "type": "string", "minLength": 1 },
+        "display": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Canonical surface form that must appear in EN/ZH prose."
+        },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "expression": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Machine-readable arithmetic for derived values, e.g. (a-b)/b*100."
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/numeric_input" }
+        },
+        "uncertainty_note_zh": { "type": "string" },
+        "rounding": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "quoted" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["sources"],
+            "properties": {
+              "sources": { "minItems": 1 }
+            },
+            "not": {
+              "required": ["expression"]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "derived" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["expression", "inputs", "sources"],
+            "properties": {
+              "expression": { "minLength": 1 },
+              "inputs": { "minItems": 1 },
+              "sources": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "chart_estimate" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["sources", "uncertainty_note_zh"],
+            "properties": {
+              "sources": { "minItems": 1 },
+              "uncertainty_note_zh": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "zh_mode",
+        "explanation_zh",
+        "confidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["author_claim", "paper_evidence", "reader_judgment"],
+          "description": "author_claim = what authors assert; paper_evidence = measurements/figures/tables supporting a claim; reader_judgment = analyst interpretation (never upgrades evidence)."
+        },
+        "zh_mode": {
+          "type": "string",
+          "enum": ["translation", "explanation", "caption_translation", "term_gloss"],
+          "description": "translation = faithful ZH of original_en; explanation = analytic ZH; reader_judgment must be explanation."
+        },
+        "section": { "type": "string" },
+        "original_en": {
+          "type": "string",
+          "description": "Verbatim or tightly bounded English from the paper. Required nonempty for author_claim/paper_evidence; empty for reader_judgment."
+        },
+        "explanation_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Faithful Chinese explanation of the selected English span."
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "supports_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          },
+          "description": "For paper_evidence rows: which author_claim IDs this evidence supports."
+        },
+        "depends_on_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "uncertainty_note_zh": { "type": "string" },
+        "secondary_citation": {
+          "type": "boolean",
+          "description": "True when the paper cites another work rather than reporting primary evidence."
+        },
+        "cited_work": { "type": "string", "minLength": 1 },
+        "cited_marker": { "type": "string", "minLength": 1 },
+        "evidence_independence": {
+          "type": "string",
+          "enum": ["primary", "secondary", "non_independent"]
+        },
+        "contradicts_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          }
+        },
+        "numeric": { "$ref": "#/$defs/numeric_provenance" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "role": { "enum": ["author_claim", "paper_evidence"] }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "required": ["original_en", "sources"],
+            "properties": {
+              "original_en": { "minLength": 1 },
+              "sources": { "minItems": 1 },
+              "zh_mode": { "enum": ["translation", "explanation"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "role": { "const": "paper_evidence" } },
+            "required": ["role"]
+          },
+          "then": {
+            "required": ["supports_claim_ids"],
+            "properties": {
+              "supports_claim_ids": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "role": { "const": "reader_judgment" } },
+            "required": ["role"]
+          },
+          "then": {
+            "required": ["depends_on_claim_ids"],
+            "properties": {
+              "depends_on_claim_ids": { "minItems": 1 },
+              "zh_mode": { "const": "explanation" },
+              "original_en": { "maxLength": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "secondary_citation": { "const": true } },
+            "required": ["secondary_citation"]
+          },
+          "then": {
+            "required": ["evidence_independence"],
+            "properties": {
+              "evidence_independence": {
+                "enum": ["secondary", "non_independent"]
+              }
+            },
+            "anyOf": [
+              { "required": ["cited_work"] },
+              { "required": ["cited_marker"] }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "confidence": { "enum": ["medium", "low"] }
+            },
+            "required": ["confidence"]
+          },
+          "then": {
+            "required": ["uncertainty_note_zh"],
+            "properties": {
+              "uncertainty_note_zh": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

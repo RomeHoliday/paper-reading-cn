@@ -1,0 +1,101 @@
+name: paper-reading-cn
+version: 1.0.0
+description: >
+  Declarative manifest for the static/dynamic split. SKILL.md uses this to
+  decide which fragments to load for a selective, source-grounded Chinese
+  PDF reading report. Axes are source_format, paper_type, depth, and
+  code_repo. Formal reading is single-agent by default.
+
+always_load:
+  - static/core/execution-mode.md
+  - static/core/principles.md
+  - static/core/workflow.md
+  - static/core/output-contract.md
+  - static/core/chinese-style.md
+
+axes:
+  source_format:
+    detect: |
+      Determine the input form the user provided. Use pdf-text for a
+      selectable-text PDF, scanned-pdf for an image-only or OCR-required PDF,
+      html for a publisher or preprint HTML page, and doi-arxiv for a bare DOI
+      or arXiv identifier/link that must be resolved first. If several apply
+      (for example a DOI that resolves to a PDF), load the resolution fragment
+      first, then the fragment for the resolved artifact.
+    values:
+      pdf-text:    static/fragments/source/pdf-text.md
+      scanned-pdf: static/fragments/source/scanned-pdf.md
+      doi-arxiv:   static/fragments/source/doi-arxiv.md
+      html:        static/fragments/source/html.md
+    default: pdf-text
+    multi: true
+
+  paper_type:
+    detect: |
+      Classify the paper's primary genre from title, abstract, and section
+      structure. Use systems for systems/architecture/implementation papers,
+      empirical for experimental/statistical studies, theory for formal
+      proofs and models, survey for surveys/taxonomies/reviews, and other when
+      no single genre dominates. When
+      mixed, pick the dominant contribution type and note secondary traits
+      in translation_notes.md.
+    values:
+      systems:   static/fragments/paper-type/systems.md
+      empirical: static/fragments/paper-type/empirical.md
+      theory:    static/fragments/paper-type/theory.md
+      survey:    static/fragments/paper-type/survey.md
+      other:     static/fragments/paper-type/other.md
+    default: other
+    multi: false
+
+  depth:
+    detect: |
+      Choose brief, standard, or deep from the user's request. Default to
+      standard when unspecified. Keywords: 简述/速读/brief → brief;
+      精读/standard/默认 → standard; 深读/逐节/deep → deep.
+    values:
+      brief:    static/fragments/depth/brief.md
+      standard: static/fragments/depth/standard.md
+      deep:     static/fragments/depth/deep.md
+    default: standard
+    multi: false
+
+  code_repo:
+    detect: |
+      Use present when the user supplies, mounts, or points to a code
+      repository for paper↔code correspondence. Otherwise use absent.
+      Do not invent a repository path.
+    values:
+      absent:  static/fragments/repo/absent.md
+      present: static/fragments/repo/present.md
+    default: absent
+    multi: false
+
+references:
+  on_demand:
+    - condition: exact report.json / source_map.json / claim_ledger.json field schemas
+      path: references/output-spec.md
+    - condition: evidence separation, numeric provenance, uncertainty marking
+      path: references/grounding-rules.md
+    - condition: figure/table selection, caption bilingual fields, crop placement
+      path: references/figure-reading.md
+    - condition: paper↔code mapping statuses and code_map.json shape
+      path: references/code-paper-alignment.md
+    - condition: HTML/CSS report layout and headless browser PDF printing
+      path: references/pdf-rendering.md
+    - condition: extract_pdf / crop_asset / repo_snapshot / verify_bundle / render_report usage
+      path: references/script-usage.md
+
+scripts:
+  extract_pdf:    scripts/extract_pdf.py
+  crop_asset:     scripts/crop_asset.py
+  repo_snapshot:  scripts/repo_snapshot.py
+  verify_bundle:  scripts/verify_bundle.py
+  render_report:  scripts/render_report.py
+  selftest:       scripts/selftest.py
+
+schemas:
+  source_map:   schemas/source-map.schema.json
+  claim_ledger: schemas/claim-ledger.schema.json
+  code_map:     schemas/code-map.schema.json
+  report:       schemas/report.schema.json

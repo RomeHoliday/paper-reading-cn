@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+.DS_Store
+Thumbs.db
+
+# Local reading outputs / fixtures (never commit user papers)
+readings/
+*.partial
+.qa_cache/

@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor.local/skills/paper-reading-cn/schemas/code-map.schema.json",
+  "title": "paper-reading-cn code_map",
+  "description": "Paper↔code correspondence bound to a repo_snapshot. Status is exact|partial|mismatch|unverified. exact requires mechanical proof (path+range+symbol or matching code_excerpt ≤20 lines). name_only and token_or_number_hit cannot be exact. Excluded/vendor paths cannot be exact. Repository evidence never proves paper performance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "snapshot_id",
+    "commit",
+    "dirty",
+    "version_alignment_status",
+    "mappings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Must match repo_snapshot.json snapshot_id (or equivalent binding id)."
+    },
+    "commit": {
+      "type": "string",
+      "minLength": 7,
+      "description": "Git commit recorded in the bound snapshot (same as snapshot git.commit/head)."
+    },
+    "dirty": {
+      "type": "boolean",
+      "description": "Must match snapshot git.dirty at mapping time."
+    },
+    "version_alignment_status": {
+      "type": "string",
+      "enum": [
+        "matched_tag",
+        "same_repo_unknown_rev",
+        "likely_drift",
+        "unrelated",
+        "user_asserted"
+      ],
+      "description": "Surfaced in the report code section. exact forbidden when likely_drift or unrelated unless match_basis=user_waived with notes."
+    },
+    "paper_slug": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional paper identifier for bundle naming."
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "head"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute repository root used for path confinement."
+        },
+        "head": {
+          "type": "string",
+          "minLength": 7,
+          "description": "Git HEAD commit at mapping time (should equal commit)."
+        },
+        "dirty": { "type": "boolean" },
+        "snapshot_path": { "type": "string" }
+      }
+    },
+    "mappings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/mapping" }
+    },
+    "unmapped_paper_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim_id"],
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          },
+          "reason": { "type": "string" },
+          "reason_zh": { "type": "string", "minLength": 1 },
+          "note_zh": { "type": "string" }
+        },
+        "anyOf": [
+          { "required": ["reason_zh"] },
+          { "required": ["note_zh"] },
+          { "required": ["reason"] }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "block_id"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "block_id": {
+          "type": "string",
+          "pattern": "^(S|C)[0-9]{3,}$"
+        },
+        "figure_id": {
+          "type": "string",
+          "pattern": "^F[0-9]{3,}$"
+        },
+        "table_id": {
+          "type": "string",
+          "pattern": "^T[0-9]{3,}$"
+        }
+      }
+    },
+    "code_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "line_start",
+        "line_end",
+        "role_en",
+        "role_zh"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository-relative POSIX-style path under focus_root. Secret path parts (.ssh/secrets/private/credentials) and SSH id_* keys are always blocked; never exact and never excerpted."
+        },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 },
+        "symbol": {
+          "type": "string",
+          "description": "For exact: must appear as a substring in the cited line range, unless code_excerpt equals the on-disk slice. exact always requires (line_end-line_start+1)≤20."
+        },
+        "code_excerpt": {
+          "type": "string",
+          "description": "Exact on-disk slice for the cited lines. exact status always requires ≤20 lines. For exact without in-range symbol, excerpt must equal the file slice. Never include secret-denylist path contents."
+        },
+        "config_key": { "type": "string" },
+        "default_value": { "type": "string" },
+        "role_en": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the cited lines do. Must not claim they prove paper performance (QPS/latency/speedup)."
+        },
+        "role_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Cited lines 做什么；不得把代码说成证明了论文性能/结果（吞吐/延迟/加速）。"
+        },
+        "fact_keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclusion_reason": {
+          "type": "string",
+          "description": "If path is vendor/generated/secret-excluded, record why; status must not be exact."
+        },
+        "excluded_path": {
+          "type": "boolean",
+          "description": "True when path is under snapshot exclusions. exact forbidden."
+        }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "claim_id",
+        "status",
+        "match_basis",
+        "paper_statement_en",
+        "paper_explanation_zh",
+        "paper_sources",
+        "code_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^CM[0-9]{3,}$"
+        },
+        "map_id": {
+          "type": "string",
+          "pattern": "^CM[0-9]{3,}$",
+          "description": "Optional alias of id for G10 naming."
+        },
+        "claim_id": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["exact", "partial", "mismatch", "unverified"],
+          "description": "exact = mechanical symbol/excerpt proof of stated mechanism/param; never performance proof. partial = related/incomplete/token hit. mismatch = conflicting fact. unverified = inadequate evidence."
+        },
+        "match_basis": {
+          "type": "string",
+          "enum": [
+            "symbol_and_behavior",
+            "param_key_and_value",
+            "param_key_value_conflict",
+            "token_or_number_hit",
+            "name_only",
+            "readme_claim",
+            "user_waived"
+          ],
+          "description": "Mechanical basis for the status. name_only and token_or_number_hit cannot be exact."
+        },
+        "paper_statement_en": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bounded English paper span (always required)."
+        },
+        "paper_explanation_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Faithful Chinese explanation (always required)."
+        },
+        "paper_sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" },
+          "description": "Paper anchors always required."
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" },
+          "description": "Alias of paper_sources accepted by some writers; prefer paper_sources."
+        },
+        "code_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/code_ref" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "notes_zh": { "type": "string" },
+        "uncertainty_notes_zh": { "type": "string" },
+        "reader_judgment": { "type": ["string", "null"] },
+        "name_match_only": {
+          "type": "boolean",
+          "description": "Deprecated alias of match_basis=name_only. Must not be status=exact."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "enum": ["exact", "partial", "mismatch"] }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "code_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "unverified" } },
+            "required": ["status"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": ["notes_zh"],
+                "properties": { "notes_zh": { "minLength": 1 } }
+              },
+              {
+                "required": ["uncertainty_notes_zh"],
+                "properties": { "uncertainty_notes_zh": { "minLength": 1 } }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "name_match_only": { "const": true } },
+            "required": ["name_match_only"]
+          },
+          "then": {
+            "properties": {
+              "status": { "not": { "const": "exact" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "match_basis": { "const": "name_only" } },
+            "required": ["match_basis"]
+          },
+          "then": {
+            "properties": {
+              "status": { "not": { "const": "exact" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "match_basis": { "const": "token_or_number_hit" } },
+            "required": ["match_basis"]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "enum": ["partial", "unverified"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "const": "exact" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "match_basis": {
+                "enum": [
+                  "symbol_and_behavior",
+                  "param_key_and_value",
+                  "user_waived"
+                ]
+              },
+              "code_refs": {
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "anyOf": [
+                    {
+                      "required": ["symbol"],
+                      "properties": {
+                        "symbol": { "type": "string", "minLength": 1 }
+                      }
+                    },
+                    {
+                      "required": ["code_excerpt"],
+                      "properties": {
+                        "code_excerpt": { "type": "string", "minLength": 1 }
+                      }
+                    }
+                  ],
+                  "properties": {
+                    "excluded_path": {
+                      "not": { "const": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

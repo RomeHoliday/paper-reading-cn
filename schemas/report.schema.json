@@ -1,0 +1,658 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor.local/skills/paper-reading-cn/schemas/report.schema.json",
+  "title": "paper-reading-cn report",
+  "description": "Structured selective Chinese reading report. Load-bearing blocks require original_en, explanation_zh, and exact source anchors. Not a full-paper translation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "meta",
+    "overview",
+    "problem",
+    "argument_map",
+    "method",
+    "selected_figures_tables",
+    "evidence_audit",
+    "contributions",
+    "limitations",
+    "reproduction",
+    "terminology"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "paper_slug",
+        "title_en",
+        "title_zh",
+        "depth",
+        "generated_at"
+      ],
+      "properties": {
+        "paper_slug": { "type": "string", "minLength": 1 },
+        "title_en": { "type": "string", "minLength": 1 },
+        "title_zh": { "type": "string", "minLength": 1 },
+        "authors": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "venue": { "type": "string" },
+        "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
+        "depth": {
+          "type": "string",
+          "enum": ["brief", "standard", "deep"]
+        },
+        "paper_type": {
+          "type": "string",
+          "enum": ["systems", "empirical", "theory", "survey", "other"]
+        },
+        "source_format": {
+          "type": "string",
+          "enum": ["pdf-text", "scanned-pdf", "html", "doi-arxiv", "text"]
+        },
+        "code_repo": {
+          "type": "string",
+          "enum": ["absent", "present"]
+        },
+        "generated_at": {
+          "type": "string",
+          "minLength": 4,
+          "description": "ISO-8601 timestamp."
+        },
+        "execution_mode": {
+          "type": "string",
+          "enum": ["single", "user_requested_multi"],
+          "description": "Default single. user_requested_multi requires explicit user_opt_in_note."
+        },
+        "user_opt_in_note": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when execution_mode=user_requested_multi; quote the user opt-in."
+        },
+        "single_agent": {
+          "type": "boolean",
+          "description": "Legacy compatibility. true is accepted as execution_mode=single."
+        },
+        "draft_mode": {
+          "type": "boolean",
+          "description": "When true, medium-OCR quoted numerics warn instead of blocking."
+        },
+        "claim_ledger_path": { "type": "string" },
+        "source_map_path": { "type": "string" },
+        "code_map_path": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["execution_mode"] },
+        {
+          "required": ["single_agent"],
+          "properties": { "single_agent": { "const": true } }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "execution_mode": { "const": "user_requested_multi" } },
+            "required": ["execution_mode"]
+          },
+          "then": {
+            "required": ["user_opt_in_note"],
+            "properties": {
+              "user_opt_in_note": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "overview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary_zh", "audience_zh", "key_points"],
+      "properties": {
+        "summary_zh": { "type": "string", "minLength": 1 },
+        "audience_zh": { "type": "string", "minLength": 1 },
+        "key_points": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "argument_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "intro_zh": { "type": "string" },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/argument_node" }
+        }
+      }
+    },
+    "method": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        },
+        "algorithm_steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "selected_figures_tables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/figure_table_card" }
+    },
+    "evidence_audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_item" }
+        }
+      }
+    },
+    "contributions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "limitations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        },
+        "reviewer_objections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checklist"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["applicable", "not_applicable"]
+        },
+        "reason_zh": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "checklist": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repro_item" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "not_applicable" }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["reason_zh", "sources"],
+            "properties": {
+              "checklist": { "maxItems": 0 }
+            }
+          },
+          "else": {
+            "properties": {
+              "checklist": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "terminology": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/term_row" }
+    },
+    "code_correspondence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary_zh": { "type": "string" },
+        "mapping_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CM[0-9]{3,}$"
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bilingual_item" }
+        }
+      }
+    },
+    "claim_ids_used": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CL[0-9]{3,}$"
+      }
+    }
+  },
+  "$defs": {
+    "source_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "block_id"],
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "block_id": {
+          "type": "string",
+          "pattern": "^(S|C)[0-9]{3,}$"
+        },
+        "figure_id": {
+          "type": "string",
+          "pattern": "^F[0-9]{3,}$"
+        },
+        "table_id": {
+          "type": "string",
+          "pattern": "^T[0-9]{3,}$"
+        }
+      }
+    },
+    "bilingual_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_en",
+        "explanation_zh",
+        "sources",
+        "role",
+        "zh_mode",
+        "claim_id"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "claim_id": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$",
+          "description": "Required link into claim_ledger for load-bearing units."
+        },
+        "original_en": {
+          "type": "string",
+          "description": "Bounded paper English for non-RJ; empty string for reader_judgment."
+        },
+        "explanation_zh": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "role": {
+          "type": "string",
+          "enum": ["author_claim", "paper_evidence", "reader_judgment"]
+        },
+        "zh_mode": {
+          "type": "string",
+          "enum": ["translation", "explanation", "caption_translation", "term_gloss"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "numeric_ref": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$",
+          "description": "Claim ledger id holding numeric provenance when measurement tokens appear."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "role": { "const": "reader_judgment" } },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "zh_mode": { "const": "explanation" },
+              "original_en": { "maxLength": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": { "enum": ["author_claim", "paper_evidence"] }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "original_en": { "minLength": 1 },
+              "zh_mode": { "enum": ["translation", "explanation"] }
+            }
+          }
+        }
+      ]
+    },
+    "argument_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label_zh",
+        "original_en",
+        "explanation_zh",
+        "sources",
+        "claim_id",
+        "zh_mode"
+      ],
+      "properties": {
+        "label_zh": { "type": "string", "minLength": 1 },
+        "original_en": { "type": "string", "minLength": 1 },
+        "explanation_zh": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "parent": { "type": "string" },
+        "claim_id": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$"
+        },
+        "zh_mode": {
+          "type": "string",
+          "enum": ["translation", "explanation"]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["author_claim", "paper_evidence", "reader_judgment"]
+        }
+      }
+    },
+    "crop_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Explicit-bbox crop provenance from crop_asset.py. Required whenever a raster asset is present and provenance is representable. method is always explicit_bbox; auto crops are out of policy.",
+      "required": [
+        "method",
+        "status",
+        "page",
+        "bbox_pdf_points",
+        "zoom",
+        "effective_dpi",
+        "source_sha256"
+      ],
+      "properties": {
+        "method": {
+          "type": "string",
+          "const": "explicit_bbox"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["verified", "approximate"]
+        },
+        "page": { "type": "integer", "minimum": 1 },
+        "bbox_pdf_points": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": "number" }
+        },
+        "coord_origin": {
+          "type": "string",
+          "enum": ["top_left"]
+        },
+        "zoom": { "type": "number", "minimum": 2 },
+        "effective_dpi": { "type": "number", "minimum": 144 },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "description": "Must equal sha256(bundle/source.pdf)."
+        },
+        "metadata_path": {
+          "type": "string",
+          "pattern": "^assets/.+"
+        },
+        "note": { "type": "string" },
+        "validated": { "type": "boolean" }
+      }
+    },
+    "figure_table_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_id",
+        "kind",
+        "page",
+        "caption_en",
+        "caption_zh",
+        "zh_mode",
+        "reading_zh",
+        "evidence_supported_zh",
+        "evidence_not_supported_zh",
+        "sources",
+        "asset_path",
+        "alt_text"
+      ],
+      "properties": {
+        "asset_id": {
+          "type": "string",
+          "pattern": "^(F|T)[0-9]{3,}$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["figure", "table"]
+        },
+        "page": { "type": "integer", "minimum": 1 },
+        "caption_en": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Original English caption; required bilingual pair with caption_zh."
+        },
+        "caption_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Chinese caption; required bilingual pair with caption_en."
+        },
+        "zh_mode": {
+          "type": "string",
+          "const": "caption_translation",
+          "description": "Figure/table captions use caption_translation only."
+        },
+        "axes_encoding_zh": { "type": "string" },
+        "reading_zh": { "type": "string", "minLength": 1 },
+        "evidence_supported_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the figure/table plus cited text actually supports."
+        },
+        "evidence_not_supported_zh": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Common overclaims the paper does not support."
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "asset_path": {
+          "type": "string",
+          "pattern": "^assets/.+",
+          "description": "Relative path under the bundle assets/ directory."
+        },
+        "crop": {
+          "$ref": "#/$defs/crop_provenance",
+          "description": "Explicit crop provenance when a raster asset is present."
+        },
+        "crop_approximate": {
+          "type": "boolean",
+          "description": "Legacy flag; prefer crop.status=approximate."
+        },
+        "alt_text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "English accessibility description of visible encodings."
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          }
+        }
+      }
+    },
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "original_en",
+        "explanation_zh",
+        "sources",
+        "verdict_zh",
+        "role",
+        "zh_mode",
+        "claim_id"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "claim_id": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$"
+        },
+        "original_en": { "type": "string" },
+        "explanation_zh": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "role": {
+          "type": "string",
+          "enum": ["author_claim", "paper_evidence", "reader_judgment"]
+        },
+        "zh_mode": {
+          "type": "string",
+          "enum": ["translation", "explanation", "caption_translation", "term_gloss"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "verdict_zh": { "type": "string", "minLength": 1 },
+        "supports_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^CL[0-9]{3,}$"
+          }
+        },
+        "numeric_ref": {
+          "type": "string",
+          "pattern": "^CL[0-9]{3,}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "role": { "const": "reader_judgment" } },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "zh_mode": { "const": "explanation" },
+              "original_en": { "maxLength": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": { "enum": ["author_claim", "paper_evidence"] }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "original_en": { "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "repro_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_zh", "original_en", "sources"],
+      "properties": {
+        "step_zh": { "type": "string", "minLength": 1 },
+        "original_en": { "type": "string", "minLength": 1 },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_anchor" }
+        },
+        "code_path": { "type": "string" },
+        "required": { "type": "boolean" }
+      }
+    },
+    "term_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term_en", "term_zh"],
+      "properties": {
+        "term_en": { "type": "string", "minLength": 1 },
+        "term_zh": { "type": "string", "minLength": 1 },
+        "note_zh": { "type": "string" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/source_anchor" }
+        }
+      }
+    }
+  }
+}

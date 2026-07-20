@@ -1,0 +1,307 @@
+/* paper-reading-cn — CJK academic print stylesheet (local only).
+   Keep pure CSS: no markup, imports, or external resource functions. */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #444;
+  --rule: #ccc;
+  --card-bg: #f7f7f5;
+  --accent: #1f4e79;
+  --font-cjk: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC",
+    "Noto Sans CJK SC", "Source Han Sans SC", "Segoe UI", "Arial Unicode MS",
+    sans-serif;
+  --font-mono: "Cascadia Mono", "Consolas", "Sarasa Mono SC", monospace;
+}
+
+@page {
+  size: A4;
+  margin: 18mm 16mm 18mm 16mm;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  color: var(--ink);
+  background: #fff;
+  font-family: var(--font-cjk);
+  font-size: 10.5pt;
+  line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+body {
+  max-width: 190mm;
+  margin: 0 auto;
+  padding: 12mm 10mm 16mm;
+}
+
+@media print {
+  html,
+  body {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  a[href^="#"] {
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.35;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+h1 {
+  font-size: 16pt;
+  margin: 0 0 0.4em;
+  color: var(--accent);
+}
+
+h2 {
+  font-size: 13pt;
+  margin: 1.4em 0 0.5em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-size: 11.5pt;
+  margin: 1em 0 0.35em;
+}
+
+p {
+  margin: 0.45em 0;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 9.5pt;
+  margin-bottom: 1.2em;
+}
+
+.toc {
+  margin: 0.8em 0 1.4em;
+  padding: 0.6em 0.8em;
+  border: 1px solid var(--rule);
+  background: #fafafa;
+}
+
+.toc ol {
+  margin: 0.3em 0 0;
+  padding-left: 1.4em;
+}
+
+.toc a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.claim-card,
+.figure-card,
+.code-card {
+  background: var(--card-bg);
+  border-left: 3px solid var(--accent);
+  padding: 0.55em 0.75em;
+  margin: 0.7em 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.code-align,
+.code-align-warn,
+.code-disclaimer {
+  font-size: 9.5pt;
+  margin: 0.4em 0 0.7em;
+}
+
+.code-align-warn {
+  color: #6a4a00;
+  background: #fff8e8;
+  border: 1px solid #e0c98a;
+  padding: 0.35em 0.55em;
+}
+
+.code-disclaimer {
+  color: var(--muted);
+}
+
+.code-badges {
+  margin: 0 0 0.35em;
+}
+
+.code-badges .badge {
+  display: inline-block;
+  font-size: 8.5pt;
+  margin-right: 0.4em;
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--rule);
+  background: #fff;
+  color: var(--muted);
+}
+
+.code-badges .status-exact {
+  border-color: #2d6a4f;
+  color: #1b4332;
+}
+
+.code-badges .status-partial {
+  border-color: #9a7209;
+  color: #6a4a00;
+}
+
+.code-badges .status-mismatch {
+  border-color: #9b2226;
+  color: #9b2226;
+}
+
+.code-badges .status-unverified {
+  border-color: #666;
+  color: #555;
+}
+
+.code-ref {
+  margin: 0.45em 0 0.2em;
+  padding: 0.35em 0.5em;
+  background: #f0f0ee;
+  border: 1px solid var(--rule);
+}
+
+.code-loc,
+.code-symbol,
+.role-en,
+.role-zh {
+  font-size: 9.5pt;
+  margin: 0.15em 0;
+}
+
+.crop-meta {
+  font-size: 8.5pt;
+  color: var(--muted);
+  margin: 0.25em 0 0.4em;
+}
+
+.uncertainty {
+  font-size: 9pt;
+  color: #6a4a00;
+  margin: 0.3em 0;
+}
+
+.cjk-probe {
+  /* Selectable QA marker; keep visible but quiet */
+  font-size: 8.5pt;
+}
+
+.claim-en,
+.caption-en {
+  font-size: 9.5pt;
+  color: #222;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  margin: 0.25em 0;
+}
+
+.claim-zh,
+.caption-zh,
+.reading-zh {
+  margin: 0.25em 0;
+}
+
+.anchors {
+  font-size: 8.5pt;
+  color: var(--muted);
+  margin-top: 0.35em;
+}
+
+.anchors span {
+  display: inline-block;
+  margin-right: 0.45em;
+}
+
+.keep-together {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin: 0.9em 0;
+}
+
+.keep-together img,
+.figure-card img {
+  display: block;
+  max-width: 100%;
+  max-height: 220mm;
+  height: auto;
+  object-fit: contain;
+  margin: 0.35em 0;
+}
+
+table.terms,
+table.checklist {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+table.terms th,
+table.terms td,
+table.checklist th,
+table.checklist td {
+  border: 1px solid var(--rule);
+  padding: 0.3em 0.45em;
+  vertical-align: top;
+  text-align: left;
+}
+
+table.terms th,
+table.checklist th {
+  background: #eef2f6;
+}
+
+ul.checklist {
+  margin: 0.4em 0;
+  padding-left: 1.3em;
+}
+
+.estimate {
+  color: #6a4a00;
+}
+
+.footer-note {
+  margin-top: 2em;
+  font-size: 8.5pt;
+  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  padding-top: 0.5em;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 9pt;
+}
+
+pre {
+  white-space: pre-wrap;
+  background: #f3f3f3;
+  padding: 0.45em 0.6em;
+  page-break-inside: avoid;
+}

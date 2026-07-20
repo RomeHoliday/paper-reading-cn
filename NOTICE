@@ -1,0 +1,27 @@
+paper-reading-cn
+Copyright (c) 2026 xym
+
+This skill is released under the MIT License (see LICENSE).
+
+Third-party runtime dependencies (not redistributed in this repository):
+
+1. PyMuPDF (Python import name: fitz)
+   - Used by scripts for PDF text extraction, cropping, and PDF QA.
+   - PyMuPDF is licensed under AGPL-3.0 by Artifex Software, Inc., with
+     commercial licensing available from Artifex.
+   - Users install it themselves via `pip install pymupdf`.
+   - This repository does not vendor PyMuPDF source or binaries.
+   - If you distribute a combined product that tightly couples this skill
+     with PyMuPDF, review AGPL obligations or obtain a commercial license.
+
+2. jsonschema (optional)
+   - Used for stricter JSON Schema validation when installed.
+   - Typically MIT-licensed; install via `pip install jsonschema`.
+
+3. System browsers (Microsoft Edge / Google Chrome / Chromium)
+   - Optional for headless HTML→PDF printing.
+   - Not redistributed by this project.
+
+4. CJK / UI fonts named in assets/report.css
+   - Font family names only (e.g. Microsoft YaHei, PingFang SC,
+     Noto Sans CJK SC). Font files are not bundled.
