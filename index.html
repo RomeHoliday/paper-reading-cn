@@ -1,0 +1,2014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Eight GPUs take turns</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css"/>
+<style>
+  :root {
+    --ink: #1c1915;
+    --muted: #6b645c;
+    --line: #e4ddd2;
+    --paper: #f6f1e8;
+    --card: #fffdf8;
+    --pick: #0f6e56;
+    --cool: #d8c7a6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 36px 20px 72px; }
+  .kicker {
+    margin: 0 0 8px;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1, .sentence {
+    font-family: Palatino, "Iowan Old Style", "Palatino Linotype", serif;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .sentence {
+    font-size: clamp(26px, 4vw, 34px);
+    margin: 0 0 28px;
+  }
+  h1 {
+    font-size: clamp(32px, 5vw, 44px);
+    line-height: 1.05;
+    margin: 8px 0 0;
+  }
+  h1 em { font-style: italic; color: var(--pick); }
+  table.nums { width: 100%; border-collapse: collapse; margin: 14px 0 18px; font-variant-numeric: tabular-nums; }
+  table.nums th, table.nums td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: right; }
+  table.nums td:first-child, table.nums th:first-child { text-align: left; }
+  table.nums th { color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .lead { margin: 12px 0 0; max-width: 38rem; }
+  .watts {
+    margin: 18px 0 0;
+    font-family: Palatino, "Iowan Old Style", serif;
+    font-size: 42px;
+    letter-spacing: -0.03em;
+  }
+  .watts span { color: var(--muted); font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: 0; }
+  .card {
+    margin-top: 22px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px 14px 10px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 52px 1fr 4.6rem;
+    gap: 8px;
+    align-items: center;
+    margin: 6px 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .row.on { color: var(--pick); font-weight: 650; }
+  .track { height: 16px; background: #efe8dc; border-radius: 5px; position: relative; overflow: hidden; }
+  .seg { position: absolute; top: 0; height: 100%; }
+  .hi { background: var(--pick); }
+  .lo { background: var(--cool); }
+  .costs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .opt { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--card); }
+  .opt.on { background: var(--pick); color: #f6f1e8; border-color: var(--pick); }
+  .legend { font-size: 15px; color: #3f3a34; margin: 12px 2px 4px; }
+  .swatch { display: inline-block; width: 18px; height: 12px; border-radius: 3px; margin: 0 6px 0 0; vertical-align: -1px; }
+  .swatch.hi { background: var(--pick); }
+  .swatch.lo { background: var(--cool); margin-left: 14px; }
+  .opt .why { display: block; margin-top: 6px; font-size: 14px; font-weight: 400; line-height: 1.35; }
+  .opt b { display: none; }
+  .howto {
+    margin: 14px 0 0;
+    padding: 14px 16px;
+    background: #e7f3ef;
+    border: 1px solid #b7d9ce;
+    border-radius: 14px;
+    font-size: 18px;
+    line-height: 1.45;
+  }
+  .howto b { font-weight: 650; }
+  .controls { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 10px 16px;
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  h2 {
+    font-family: Palatino, "Iowan Old Style", serif;
+    font-weight: 500;
+    font-size: 28px;
+    margin: 48px 0 8px;
+  }
+  h3 { font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 28px 0 8px; }
+  .eq {
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 6px 18px 10px;
+    overflow-x: auto;
+    margin: 14px 0 0;
+  }
+  .eq .katex-display { margin: 0.7em 0; }
+  .eq .katex,
+  .eq .katex-html {
+    white-space: nowrap;
+  }
+  .eq:has(+ dl.sym) {
+    border-radius: 18px 18px 0 0;
+    margin-bottom: 0;
+  }
+  .katex-mathml {
+    position: absolute;
+    clip: rect(1px, 1px, 1px, 1px);
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  dl.sym {
+    margin: 0 0 28px;
+    background: #fffdf8;
+    border: 1px solid var(--line);
+    border-top: none;
+    border-radius: 0 0 18px 18px;
+    padding: 4px 8px 8px;
+  }
+  .eq + dl.sym { margin-top: 0; }
+  dl.sym div {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: 8px 22px;
+    align-items: baseline;
+    padding: 12px 14px;
+  }
+  dl.sym div + div { box-shadow: inset 0 1px 0 #f3eee6; }
+  dl.sym dt {
+    margin: 0;
+    font-family: Palatino, "Iowan Old Style", serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--pick);
+    line-height: 1.2;
+  }
+  dl.sym dd {
+    margin: 0;
+    color: #3f3a34;
+    font-size: 16px;
+    line-height: 1.45;
+  }
+  .formula {
+    background: #f0e9dc;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+  ol { padding-left: 1.2em; }
+  li { margin: 0.35em 0; }
+  .print-only { display: none; }
+  @media print {
+    body { background: #fff; color: #1c1915; }
+    main { max-width: none; padding: 0; }
+    .screen-only { display: none !important; }
+    .print-only {
+      display: block;
+      margin: 0 0 10px;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    h1, h2 {
+      break-after: avoid-page;
+      page-break-after: avoid;
+    }
+    h3 {
+      break-after: avoid-page;
+      page-break-after: avoid;
+    }
+    .eq, .card, .costs, .keep, .howto {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    dl.sym div {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .eq {
+      margin: 8px 0 10px;
+      padding: 4px 12px 6px;
+    }
+    .eq:has(+ dl.sym) {
+      border-radius: 14px 14px 0 0;
+      margin-bottom: 0;
+    }
+    dl.sym {
+      margin: 0 0 16px;
+      padding: 2px 4px 4px;
+    }
+    dl.sym div { padding: 8px 10px; }
+    dl.sym dt { font-size: 18px; }
+    dl.sym dd { font-size: 13px; }
+    .card { margin-top: 10px; padding: 10px; }
+    .costs { margin-top: 8px; gap: 6px; }
+    .opt { padding: 8px 10px; }
+    .opt .why { font-size: 12px; }
+    .watts { font-size: 34px; margin: 10px 0 0; }
+    .lead { margin: 8px 0 0; }
+    .row { margin: 4px 0; }
+    .track { height: 14px; }
+    #eight, #harder {
+      break-before: page;
+      page-break-before: always;
+    }
+    /* Interactive controls must not appear in the PDF. */
+    .controls,
+    .ex-nav,
+    .ex-tabs,
+    .ex-chips {
+      display: none !important;
+    }
+    .ex-player .ex-title { font-size: 1.15rem; margin: 0 0 2px; }
+    .ex-player .ex-watts { font-size: 1.6rem; margin: 0 0 2px; }
+    .ex-player .ex-blurb,
+    .ex-player .ex-meta { font-size: 12px; margin: 0 0 6px; }
+    .ex-player .ex-lanes { margin-bottom: 4px; }
+    .ex-player .ex-lane { margin-bottom: 1px; }
+    .ex-player .ex-lane .bar,
+    .ex-player .track { height: 10px; }
+    /* Prose under the still already covers drifting; keep the other two cases. */
+    #harder-prose-drift { display: none !important; }
+    @page { margin: 11mm; size: letter; }
+  }
+  @media (max-width: 640px) {
+    .costs { grid-template-columns: 1fr; }
+    dl.sym div { grid-template-columns: 1fr; gap: 2px; padding: 12px 10px 14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="sentence">Training jobs on one feeder peak together: each GPU draws about 700 W while computing and about 140 W while communicating.</p>
+
+  <h2>Where the problem sits</h2>
+  <h3>AI training</h3>
+  <p>A training step is compute kernels, then a collective. Power is high, then low. For an H100-class machine that shape is drawn here as about 700 W in compute and about 140 W in communication. Fifty thousand GPUs in one synchronous job would swing between about 35 MW and 7 MW. Those watts are an overlay for the lecture, not a meter on the laptop that drew this page.</p>
+  <h3>The GPU</h3>
+  <p>Delaying one synchronous job only slides its wave. The height of that one job does not fall. The decision appears when several independent jobs share a feeder and each has slack before its deadline.</p>
+  <h3>The datacenter</h3>
+  <p>The feeder is sized for the coincident peak. On eight identical jobs, computing together draws 8×700 = 5600 W. The next two seconds the same feeder carries 8×140 = 1120 W. Spare power in the valley cannot take another job if the breaker was already sized to the peak. The compute phase of a new job still lands on that peak.</p>
+  <p>AI training produces the square wave, the GPU is where the watts are, and the datacenter pays for the moment those waves line up.</p>
+
+  <h2>Why the peak matters</h2>
+  <p>Moving the same intervals does not change the useful energy. Eight identical jobs use 8×(700×16 + 140×16)/3600 = 29.87 Wh whether they are aligned or staggered. An offset changes the peak and the shape of the sum.</p>
+  <ul>
+    <li>Filling the valley with dummy work leaves the peak at 5600 W and adds 17.42 Wh that does not train.</li>
+    <li>Cutting compute power by 25% takes the peak from 5600 W to 4200 W and stretches the finish from 32 s to 37.3 s. The step itself gets slower.</li>
+    <li>The price leaves both watt levels alone. The same eight jobs go from 5600 W to 3360 W, finish at 34 s, deadline 40 s, and miss nobody. 3360 W is 4×700 + 4×140.</li>
+  </ul>
+  <p>What is being bought is room on the feeder, not a lower GPU power limit and not fewer watt-hours of training.</p>
+
+  <h2>Related work</h2>
+  <h3>Zeus</h3>
+  <p>Zeus (You, Chung, and Chowdhury, NSDI 2023) chooses a batch size and a GPU power limit, and reports energy-to-accuracy against time-to-accuracy. It profiles power limits in the first epoch and samples batch sizes. This lecture leaves the watt levels fixed and moves the start of a square wave that already has its shape, subject to a deadline.</p>
+  <h3>Power Stabilization</h3>
+  <p>Power Stabilization (Choukse et al., arXiv:2508.14318, 2025) treats the square wave as a plant problem and fills the communication valley with dummy GEMM or a firmware floor. On the eight-job trace here, that fill costs 17.42 Wh and leaves the peak at 5600 W.</p>
+  <h3>POLCA</h3>
+  <p>POLCA (Patel et al., ASPLOS 2024) measures power swings of cloud LLM training and the effect of frequency caps on A100s. A cap changes how high compute is and how long it lasts. A 25% compute-power cut in this simulator lands at 4200 W and 37.3 s.</p>
+  <h3>Deadline scheduling</h3>
+  <p>Deadline-aware GPU schedulers choose which job runs under a time constraint. They do not model a compute/communication square wave.</p>
+  <h3>A price for a shared constraint</h3>
+  <p>Optimization flow control (Low and Lapsley, IEEE/ACM Trans. Networking, 1999) turns a capacity constraint into a price, and each source solves its own problem. The Adaptive Charging Network (Lee, Low, et al., IEEE Trans. Smart Grid, 2021) uses that idea for EV charging under a deadline. Those results are for divisible rates or currents, and for convex programs. This lecture uses the price on a discrete start offset. It does not inherit the convergence theorem. Greening geographical load balancing (Liu, Lin, Wierman, Low, and Andrew, SIGMETRICS 2011) prices electricity across data centers, not phases inside one room.</p>
+  <p>The decision here is the offset of a square wave inside one room. The numbers are peak, finish time, deadline misses, and dummy energy, from a laptop simulator.</p>
+
+  <h2>How a job picks its start</h2>
+  <p>A job can only slide the moment it begins. A price marks which moments are already busy. The job keeps the start with the smallest bill.</p>
+
+  <div class="keep">
+  <h3>1. One GPU</h3>
+  <p>Every 4 seconds the GPU repeats two levels: 2 s of compute at 700 W, then 2 s of communication at 140 W. Eight repeats. Eight such GPUs share one feeder.</p>
+  <div class="eq">
+    \[
+    \begin{aligned}
+    \text{aligned} &= 8\times 700 = 5600\,\mathrm{W} \\
+    \text{staggered} &= 4\times 700 + 4\times 140 = 3360\,\mathrm{W}
+    \end{aligned}
+    \]
+  </div>
+  </div>
+
+  <div class="keep">
+  <h3>2. The only choice</h3>
+  <p>A job may wait before it starts. That wait is φ, in seconds. The deadline allows up to 4 s, tried every 0.1 s.</p>
+  <div class="eq">
+    \[ \varphi \in \{0,\, 0.1,\, 0.2,\, \ldots,\, 4.0\} \]
+  </div>
+  </div>
+
+  <div class="keep">
+  <h3>3. The price of each moment</h3>
+  <p>The room looks at every GPU except the one deciding. Busy moments get almost all of the price. The prices add up to 1.</p>
+  <div class="eq">
+    \[ z(t)=\frac{P_{-i}(t)-\max_u P_{-i}(u)}{280} \]
+  </div>
+  <div class="eq">
+    \[ \lambda(t)=\dfrac{e^{z(t)}}{\displaystyle\sum_u e^{z(u)}} \]
+  </div>
+  </div>
+  <dl class="sym">
+    <div><dt>t</dt><dd>One moment on the clock. Here each moment is 0.1 seconds long.</dd></div>
+    <div><dt>i</dt><dd>The job that is choosing right now. For the first choice, i is job 0.</dd></div>
+    <div><dt>P</dt><dd>Power, in watts. A bigger P means the GPUs are drawing more electricity at that moment.</dd></div>
+    <div><dt>P<sub>−i</sub>(t)</dt><dd>The watts of every GPU except job i, at moment t. Job i’s own watts are left out, so it is not charged for crowding it created itself.</dd></div>
+    <div><dt>u</dt><dd>Just another moment, used while we look across the whole clock.</dd></div>
+    <div><dt>max<sub>u</sub></dt><dd>The busiest moment: the largest watt reading among all the others.</dd></div>
+    <div><dt>280</dt><dd>The temperature, in watts. The formula divides by it. It is written τ = 280. A small temperature makes the price sit almost only on the busiest moment.</dd></div>
+    <div><dt>z(t)</dt><dd>The temperature score. z(t) = (watts at this moment − watts at the busiest moment) / 280. The busiest moment is 0. Every quieter moment is negative.</dd></div>
+    <div><dt>e<sup>z</sup></dt><dd>Turns that score into a weight. A score of 0 has weight 1. A score of −14 has a weight so small it is practically 0.</dd></div>
+    <div><dt>Σ<sub>u</sub></dt><dd>Add the weights of every moment together.</dd></div>
+    <div><dt>λ(t)</dt><dd>The price of moment t. It is that moment’s weight divided by the total of all weights. Every price is at least 0, and all of them add up to 1.</dd></div>
+  </dl>
+  <p>Job 0’s first look, while the other seven are still together:</p>
+  <div class="keep">
+  <div class="eq">
+    \[
+    \begin{aligned}
+    \text{compute:}\quad 7\times 700 &= 4900\,\mathrm{W} \\
+    z &= \frac{4900-4900}{280}=0 \\
+    e^{z} &= 1 \\[0.6em]
+    \text{communication:}\quad 7\times 140 &= 980\,\mathrm{W} \\
+    z &= \frac{980-4900}{280}=-14 \\
+    e^{z} &\approx 0
+    \end{aligned}
+    \]
+  </div>
+  <p>160 busy slices share the price. Each 2 s compute block gets 12.5%. Each communication block gets 0.</p>
+  </div>
+
+  <div class="keep">
+  <h3>4. The bill</h3>
+  <p>The job tries each φ and keeps the smallest cost. Moving has a small penalty, so a tie stays put.</p>
+  <div class="eq">
+    \[ \mathrm{cost}(\varphi)=\sum_t \lambda(t)\,P_i(t;\varphi)+\rho\,\lvert\varphi-\varphi_{\mathrm{now}}\rvert \]
+  </div>
+  </div>
+  <dl class="sym">
+    <div><dt>φ</dt><dd>How many seconds this job waits before it starts. The choices are 0, 0.1, 0.2, …, 4.0.</dd></div>
+    <div><dt>φ<sub>now</sub></dt><dd>The wait it already has. At the start, that is 0.</dd></div>
+    <div><dt>P<sub>i</sub>(t; φ)</dt><dd>Job i’s own watts at moment t, if it waits φ seconds. Compute is 700 W. Communication is 140 W.</dd></div>
+    <div><dt>λ(t)</dt><dd>The price of moment t, from the formula above.</dd></div>
+    <div><dt>Σ<sub>t</sub></dt><dd>Add up, over every moment, price times this job’s own watts. That sum is the bill.</dd></div>
+    <div><dt>|φ − φ<sub>now</sub>|</dt><dd>How many seconds the start would move. The straight bars mean “ignore the minus sign.”</dd></div>
+    <div><dt>ρ</dt><dd>The charge for each second the start moves.</dd></div>
+    <div><dt>cost(φ)</dt><dd>The bill, plus the charge for moving. The job keeps the wait with the smallest cost.</dd></div>
+  </dl>
+  <div class="keep">
+  <p>Job 0, first turn:</p>
+  <div class="eq">
+    \[
+    \begin{aligned}
+    \varphi&=0 &&\rightarrow& 700 \\
+    \varphi&=2 &&\rightarrow& 138 &&\text{chosen} \\
+    \varphi&=4 &&\rightarrow& 644
+    \end{aligned}
+    \]
+  </div>
+  </div>
+  <p>At φ = 2 its 700 W sits on slices whose price is 0, so the bill collapses. The charge for waiting those 2 seconds is small beside that drop.</p>
+
+  <div class="keep">
+  <h3>The dual</h3>
+  <p>The price λ(t) above is the dual variable. The feeder limit is not handed to the job. It is carried by λ. The line the job solves is the bill just defined:</p>
+  <div class="eq">
+    \[
+    \varphi_i \leftarrow \arg\min_{\varphi}\;
+    \sum_t \lambda(t)\, P_i(t;\varphi)
+    + \rho\,\lvert\varphi-\varphi_{\mathrm{now}}\rvert
+    \]
+  </div>
+  </div>
+  <p>One job answers, the load changes, λ is posted again, and the next job answers. The peak is measured after those choices.</p>
+
+  <div class="keep">
+  <h3>5. Then the next job</h3>
+  <p>One job decides, the room rebuilds λ, the next job is asked. Jobs 0, 1, 2, and 3 each take +2 s. The feeder steps 5600 → 5040 → 4480 → 3920 → 3360.</p>
+  <p>Job 4 then sees two even halves:</p>
+  <div class="eq">
+    \[
+    \begin{aligned}
+    \varphi &= 0 &&\rightarrow& 200 &&\text{chosen} \\
+    \varphi &= 2 &&\rightarrow& 655 \\
+    \varphi &= 4 &&\rightarrow& 214
+    \end{aligned}
+    \]
+  </div>
+  </div>
+  <p>Sliding 4 s would shave the bill a little, then the move penalty puts it back above 200. Job 4 stays. Jobs 5, 6, and 7 do the same.</p>
+  <p>A second pass asks everyone again. No cost falls. The loop stops at φ = [2, 2, 2, 2, 0, 0, 0, 0], peak 3360 W, finish 34 s, no deadline miss.</p>
+
+  <h2 id="eight">Eight identical jobs</h2>
+  <p class="print-only">Still frame, before anyone has moved. In the HTML page, Next job advances one GPU at a time.</p>
+  <p class="howto screen-only"><b>Press Next job.</b> The picture starts with nobody moved. Green means that GPU is computing. Tan means it is communicating. Each press then asks one GPU to pick a start.</p>
+  <div class="keep demo-block">
+  <h1 id="title">Job 0 waits <em>2 seconds</em>.</h1>
+  <p class="lead" id="lead">Its compute lands where the others are communicating. The feeder falls from 5600 W to 5040 W.</p>
+  <p class="watts" id="watts">5040 <span>watts</span></p>
+
+  <section class="card" aria-label="Eight jobs">
+    <div id="lanes"></div>
+    <p class="legend"><i class="swatch hi"></i>Computing, about 700 W<i class="swatch lo"></i>Communicating, about 140 W</p>
+    <div class="costs" id="costs"></div>
+  </section>
+  </div>
+
+  <div class="controls screen-only">
+    <button type="button" id="prev">Back</button>
+    <button type="button" class="primary" id="next">Next job</button>
+    <span class="count" id="count">1 / 16</span>
+  </div>
+
+  <h2 id="harder">Three harder pictures</h2>
+  <p class="print-only">One still frame of the drifting-period case. In the HTML page these three cases can be switched and stepped through. The PDF cannot.</p>
+  <div class="keep" id="more"></div>
+
+  <div id="harder-prose-drift">
+  <h3>Drifting periods</h3>
+  <p>Eight jobs, periods 4.0, 4.0, 4.0, 4.0, 4.1, 4.2, 4.3, and 4.4 s, for 120 s. Aligned peak 5600 W. Delaying half the jobs by 2 s is also 5600 W, because the phases slip back together. The price holds 3920 W. No deadline miss. This is not a proof that the price found the lowest possible peak.</p>
+  </div>
+
+  <h3>Unequal periods</h3>
+  <p>Periods 3, 4, 5, 6, 3, 5, 5, and 4 s. Aligned 5600 W, a fixed 2 s delay 5040 W, the price 3920 W. No miss.</p>
+
+  <h3>Different GPU counts</h3>
+  <p>Jobs with 1, 1, 2, 2, 4, 4, 8, and 8 GPUs (each still 2 s at 700 W and 2 s at 140 W). Aligned 21000 W, half delay 17640 W, price 13160 W. These cases are why a price beats always delaying half the jobs by 2 s.</p>
+</main>
+<script>
+// Generated from low_dual Gauss-Seidel (2 rounds) via stagger/low_dual/dual_price.
+window.EXAMPLES = [
+  {
+    "id": "drift",
+    "name": "Drifting periods",
+    "blurb": "Eight 1-GPU jobs with periods 4.0-4.4 s over 120 s: a fixed half-delay drifts back to 5600 W, while the price holds 3920 W with no miss.",
+    "aligned": 5600,
+    "half": 5600,
+    "price": 3920,
+    "miss": 0,
+    "makespan": 125.9,
+    "showSeconds": 16,
+    "jobs": [
+      {
+        "id": 0,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 30
+      },
+      {
+        "id": 1,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 30
+      },
+      {
+        "id": 2,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 30
+      },
+      {
+        "id": 3,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 30
+      },
+      {
+        "id": 4,
+        "nGpu": 1,
+        "tComp": 2.05,
+        "tComm": 2.05,
+        "nIters": 30
+      },
+      {
+        "id": 5,
+        "nGpu": 1,
+        "tComp": 2.1,
+        "tComm": 2.1,
+        "nIters": 29
+      },
+      {
+        "id": 6,
+        "nGpu": 1,
+        "tComp": 2.15,
+        "tComm": 2.15,
+        "nIters": 28
+      },
+      {
+        "id": 7,
+        "nGpu": 1,
+        "tComp": 2.2,
+        "tComm": 2.2,
+        "nIters": 28
+      }
+    ],
+    "steps": [
+      {
+        "round": 1,
+        "job": 0,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 5600,
+        "after": 5040,
+        "phis": [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 699,
+        "chosenCost": 107
+      },
+      {
+        "round": 1,
+        "job": 1,
+        "prev": 0.0,
+        "chosen": 2.1,
+        "before": 5040,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 645,
+        "chosenCost": 173
+      },
+      {
+        "round": 1,
+        "job": 2,
+        "prev": 0.0,
+        "chosen": 3.9,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 227,
+        "chosenCost": 222
+      },
+      {
+        "round": 1,
+        "job": 3,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 208,
+        "chosenCost": 208
+      },
+      {
+        "round": 1,
+        "job": 4,
+        "prev": 0.0,
+        "chosen": 3.2,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          3.2,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 399,
+        "chosenCost": 313
+      },
+      {
+        "round": 1,
+        "job": 5,
+        "prev": 0.0,
+        "chosen": 3.7,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.0
+        ],
+        "stayCost": 283,
+        "chosenCost": 267
+      },
+      {
+        "round": 1,
+        "job": 6,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.0
+        ],
+        "stayCost": 284,
+        "chosenCost": 284
+      },
+      {
+        "round": 1,
+        "job": 7,
+        "prev": 0.0,
+        "chosen": 0.9,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          2.0,
+          2.1,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 380,
+        "chosenCost": 297
+      },
+      {
+        "round": 2,
+        "job": 0,
+        "prev": 2.0,
+        "chosen": 1.9,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          1.9,
+          2.1,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 189,
+        "chosenCost": 182
+      },
+      {
+        "round": 2,
+        "job": 1,
+        "prev": 2.1,
+        "chosen": 2.0,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 190,
+        "chosenCost": 185
+      },
+      {
+        "round": 2,
+        "job": 2,
+        "prev": 3.9,
+        "chosen": 3.9,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 228,
+        "chosenCost": 228
+      },
+      {
+        "round": 2,
+        "job": 3,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.2,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 237,
+        "chosenCost": 237
+      },
+      {
+        "round": 2,
+        "job": 4,
+        "prev": 3.2,
+        "chosen": 3.1,
+        "before": 4480,
+        "after": 4480,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.1,
+          3.7,
+          0.0,
+          0.9
+        ],
+        "stayCost": 322,
+        "chosenCost": 318
+      },
+      {
+        "round": 2,
+        "job": 5,
+        "prev": 3.7,
+        "chosen": 3.6,
+        "before": 4480,
+        "after": 3920,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.1,
+          3.6,
+          0.0,
+          0.9
+        ],
+        "stayCost": 231,
+        "chosenCost": 225
+      },
+      {
+        "round": 2,
+        "job": 6,
+        "prev": 0.0,
+        "chosen": 0.2,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.1,
+          3.6,
+          0.2,
+          0.9
+        ],
+        "stayCost": 232,
+        "chosenCost": 229
+      },
+      {
+        "round": 2,
+        "job": 7,
+        "prev": 0.9,
+        "chosen": 0.9,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.9,
+          2.0,
+          3.9,
+          0.0,
+          3.1,
+          3.6,
+          0.2,
+          0.9
+        ],
+        "stayCost": 286,
+        "chosenCost": 286
+      }
+    ]
+  },
+  {
+    "id": "unequal",
+    "name": "Unequal halves",
+    "blurb": "Eight 1-GPU jobs with unequal compute and communication halves over 96 s: half-delay peaks at 5040 W and the price at 3920 W.",
+    "aligned": 5600,
+    "half": 5040,
+    "price": 3920,
+    "miss": 0,
+    "makespan": 102.5,
+    "showSeconds": 16,
+    "jobs": [
+      {
+        "id": 0,
+        "nGpu": 1,
+        "tComp": 1.5,
+        "tComm": 1.5,
+        "nIters": 32
+      },
+      {
+        "id": 1,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 24
+      },
+      {
+        "id": 2,
+        "nGpu": 1,
+        "tComp": 2.5,
+        "tComm": 2.5,
+        "nIters": 20
+      },
+      {
+        "id": 3,
+        "nGpu": 1,
+        "tComp": 3.0,
+        "tComm": 3.0,
+        "nIters": 16
+      },
+      {
+        "id": 4,
+        "nGpu": 1,
+        "tComp": 1.0,
+        "tComm": 2.0,
+        "nIters": 32
+      },
+      {
+        "id": 5,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 3.0,
+        "nIters": 20
+      },
+      {
+        "id": 6,
+        "nGpu": 1,
+        "tComp": 1.5,
+        "tComm": 3.5,
+        "nIters": 20
+      },
+      {
+        "id": 7,
+        "nGpu": 1,
+        "tComp": 2.5,
+        "tComm": 1.5,
+        "nIters": 24
+      }
+    ],
+    "steps": [
+      {
+        "round": 1,
+        "job": 0,
+        "prev": 0.0,
+        "chosen": 1.5,
+        "before": 5600,
+        "after": 5040,
+        "phis": [
+          1.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 618,
+        "chosenCost": 189
+      },
+      {
+        "round": 1,
+        "job": 1,
+        "prev": 0.0,
+        "chosen": 2.5,
+        "before": 5040,
+        "after": 5040,
+        "phis": [
+          1.5,
+          2.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 494,
+        "chosenCost": 293
+      },
+      {
+        "round": 1,
+        "job": 2,
+        "prev": 0.0,
+        "chosen": 2.5,
+        "before": 5040,
+        "after": 4480,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 686,
+        "chosenCost": 159
+      },
+      {
+        "round": 1,
+        "job": 3,
+        "prev": 0.0,
+        "chosen": 2.5,
+        "before": 4480,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 511,
+        "chosenCost": 330
+      },
+      {
+        "round": 1,
+        "job": 4,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 180,
+        "chosenCost": 180
+      },
+      {
+        "round": 1,
+        "job": 5,
+        "prev": 0.0,
+        "chosen": 0.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 344,
+        "chosenCost": 285
+      },
+      {
+        "round": 1,
+        "job": 6,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 264,
+        "chosenCost": 264
+      },
+      {
+        "round": 1,
+        "job": 7,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 234,
+        "chosenCost": 234
+      },
+      {
+        "round": 2,
+        "job": 0,
+        "prev": 1.5,
+        "chosen": 1.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 216,
+        "chosenCost": 216
+      },
+      {
+        "round": 2,
+        "job": 1,
+        "prev": 2.5,
+        "chosen": 2.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 233,
+        "chosenCost": 233
+      },
+      {
+        "round": 2,
+        "job": 2,
+        "prev": 2.5,
+        "chosen": 2.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 162,
+        "chosenCost": 162
+      },
+      {
+        "round": 2,
+        "job": 3,
+        "prev": 2.5,
+        "chosen": 2.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 337,
+        "chosenCost": 337
+      },
+      {
+        "round": 2,
+        "job": 4,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 181,
+        "chosenCost": 181
+      },
+      {
+        "round": 2,
+        "job": 5,
+        "prev": 0.5,
+        "chosen": 0.5,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 284,
+        "chosenCost": 284
+      },
+      {
+        "round": 2,
+        "job": 6,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 264,
+        "chosenCost": 264
+      },
+      {
+        "round": 2,
+        "job": 7,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 3920,
+        "after": 3920,
+        "phis": [
+          1.5,
+          2.5,
+          2.5,
+          2.5,
+          0.0,
+          0.5,
+          0.0,
+          0.0
+        ],
+        "stayCost": 234,
+        "chosenCost": 234
+      }
+    ]
+  },
+  {
+    "id": "widths",
+    "name": "Mixed GPU widths",
+    "blurb": "Eight jobs share a 4 s period but use 1, 1, 2, 2, 4, 4, 8, and 8 GPUs; delaying the wide half cuts the peak, and the price finds its own offsets.",
+    "aligned": 21000,
+    "half": 17640,
+    "price": 13160,
+    "miss": 0,
+    "makespan": 36.0,
+    "showSeconds": 16,
+    "jobs": [
+      {
+        "id": 0,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 1,
+        "nGpu": 1,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 2,
+        "nGpu": 2,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 3,
+        "nGpu": 2,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 4,
+        "nGpu": 4,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 5,
+        "nGpu": 4,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 6,
+        "nGpu": 8,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      },
+      {
+        "id": 7,
+        "nGpu": 8,
+        "tComp": 2.0,
+        "tComm": 2.0,
+        "nIters": 8
+      }
+    ],
+    "steps": [
+      {
+        "round": 1,
+        "job": 0,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 21000,
+        "after": 20440,
+        "phis": [
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 700,
+        "chosenCost": 138
+      },
+      {
+        "round": 1,
+        "job": 1,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 20440,
+        "after": 19880,
+        "phis": [
+          2.0,
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 700,
+        "chosenCost": 144
+      },
+      {
+        "round": 1,
+        "job": 2,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 19880,
+        "after": 18760,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 1400,
+        "chosenCost": 282
+      },
+      {
+        "round": 1,
+        "job": 3,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 18760,
+        "after": 17640,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 1400,
+        "chosenCost": 290
+      },
+      {
+        "round": 1,
+        "job": 4,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 17640,
+        "after": 15400,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 2800,
+        "chosenCost": 572
+      },
+      {
+        "round": 1,
+        "job": 5,
+        "prev": 0.0,
+        "chosen": 2.0,
+        "before": 15400,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          0.0,
+          0.0
+        ],
+        "stayCost": 2800,
+        "chosenCost": 575
+      },
+      {
+        "round": 1,
+        "job": 6,
+        "prev": 0.0,
+        "chosen": 4.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 1120,
+        "chosenCost": 1011
+      },
+      {
+        "round": 1,
+        "job": 7,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 1120,
+        "chosenCost": 1120
+      },
+      {
+        "round": 2,
+        "job": 0,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 141,
+        "chosenCost": 141
+      },
+      {
+        "round": 2,
+        "job": 1,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 141,
+        "chosenCost": 141
+      },
+      {
+        "round": 2,
+        "job": 2,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 280,
+        "chosenCost": 280
+      },
+      {
+        "round": 2,
+        "job": 3,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 280,
+        "chosenCost": 280
+      },
+      {
+        "round": 2,
+        "job": 4,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 560,
+        "chosenCost": 560
+      },
+      {
+        "round": 2,
+        "job": 5,
+        "prev": 2.0,
+        "chosen": 2.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 560,
+        "chosenCost": 560
+      },
+      {
+        "round": 2,
+        "job": 6,
+        "prev": 4.0,
+        "chosen": 4.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 980,
+        "chosenCost": 980
+      },
+      {
+        "round": 2,
+        "job": 7,
+        "prev": 0.0,
+        "chosen": 0.0,
+        "before": 13160,
+        "after": 13160,
+        "phis": [
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          2.0,
+          4.0,
+          0.0
+        ],
+        "stayCost": 1120,
+        "chosenCost": 1120
+      }
+    ]
+  }
+];
+
+</script>
+<script>
+(function () {
+  var STYLE_ID = "ex-player-style";
+
+  function injectStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    var s = document.createElement("style");
+    s.id = STYLE_ID;
+    s.textContent = [
+      ".ex-player{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1c1915;}",
+      ".ex-player *{box-sizing:border-box;}",
+      ".ex-player .ex-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}",
+      ".ex-player .ex-tab{background:#fffdf8;border:1px solid #e4ddd2;color:#1c1915;padding:6px 12px;cursor:pointer;font:inherit;border-radius:4px;}",
+      ".ex-player .ex-tab.selected{background:#0f6e56;border-color:#0f6e56;color:#fffdf8;}",
+      ".ex-player .ex-title{font-size:1.5rem;font-weight:600;line-height:1.3;margin:0 0 6px;}",
+      ".ex-player .ex-blurb{margin:0 0 16px;opacity:0.85;}",
+      ".ex-player .ex-watts{font-size:2.75rem;font-weight:700;line-height:1.1;margin:0 0 8px;}",
+      ".ex-player .ex-meta{margin:0 0 18px;font-size:0.95rem;opacity:0.85;}",
+      ".ex-player .ex-lanes{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}",
+      ".ex-player .ex-lane{display:flex;align-items:center;gap:10px;}",
+      ".ex-player .ex-lane-label{flex:0 0 110px;font-size:0.8rem;line-height:1.25;}",
+      ".ex-player .ex-lane-track{flex:1;position:relative;height:16px;background:#fffdf8;border:1px solid #e4ddd2;overflow:hidden;}",
+      ".ex-player .ex-seg{position:absolute;top:0;bottom:0;}",
+      ".ex-player .ex-seg.comp{background:#0f6e56;}",
+      ".ex-player .ex-seg.comm{background:#d8c7a6;}",
+      ".ex-player .ex-chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}",
+      ".ex-player .ex-chip{background:#fffdf8;border:1px solid #e4ddd2;padding:8px 12px;border-radius:4px;font-size:0.9rem;}",
+      ".ex-player .ex-chip.chosen{background:#0f6e56;border-color:#0f6e56;color:#fffdf8;}",
+      ".ex-player .ex-nav{display:flex;align-items:center;gap:12px;}",
+      ".ex-player .ex-nav button{background:#fffdf8;border:1px solid #e4ddd2;color:#1c1915;padding:6px 14px;cursor:pointer;font:inherit;border-radius:4px;}",
+      ".ex-player .ex-nav button:disabled{opacity:0.4;cursor:default;}",
+      ".ex-player .ex-counter{font-size:0.95rem;min-width:3.5em;text-align:center;}",
+      ".ex-player .ex-missing{padding:24px;opacity:0.7;}"
+    ].join("");
+    document.head.appendChild(s);
+  }
+
+  function peakAfter(step) {
+    if (!step || step.after == null) return 0;
+    return Number(step.after);
+  }
+
+  function fmt1(n) {
+    return (Math.round(Number(n) * 10) / 10).toFixed(1);
+  }
+
+  function fmtInt(n) {
+    return String(Math.round(Number(n)));
+  }
+
+  function renderLanes(container, ex, step) {
+    container.innerHTML = "";
+    var jobs = ex.jobs || [];
+    var show = Number(ex.showSeconds) || 1;
+    var phis = (step && step.phis) || [];
+
+    for (var i = 0; i < jobs.length; i++) {
+      var job = jobs[i];
+      var phi = phis[i] != null ? Number(phis[i]) : 0;
+      var tComp = Number(job.tComp) || 0;
+      var tComm = Number(job.tComm) || 0;
+      var nIters = Number(job.nIters) || 0;
+      var nGpu = Number(job.nGpu) || 1;
+
+      var lane = document.createElement("div");
+      lane.className = "ex-lane";
+
+      var label = document.createElement("div");
+      label.className = "ex-lane-label";
+      var labelText = "Job " + i;
+      if (nGpu > 1) labelText += " ×" + nGpu;
+      labelText += "\nφ " + fmt1(phi);
+      label.textContent = labelText;
+      label.style.whiteSpace = "pre-line";
+
+      var track = document.createElement("div");
+      track.className = "ex-lane-track";
+
+      var t = phi;
+      for (var it = 0; it < nIters; it++) {
+        // compute
+        var c0 = t;
+        var c1 = t + tComp;
+        addSeg(track, c0, c1, show, "comp");
+        t = c1;
+        // communication
+        var m0 = t;
+        var m1 = t + tComm;
+        addSeg(track, m0, m1, show, "comm");
+        t = m1;
+      }
+
+      lane.appendChild(label);
+      lane.appendChild(track);
+      container.appendChild(lane);
+    }
+  }
+
+  function addSeg(track, start, end, show, cls) {
+    var a = Math.max(0, start);
+    var b = Math.min(show, end);
+    if (b <= a) return;
+    var el = document.createElement("div");
+    el.className = "ex-seg " + cls;
+    el.style.left = (a / show) * 100 + "%";
+    el.style.width = ((b - a) / show) * 100 + "%";
+    track.appendChild(el);
+  }
+
+  function mount(root, examples) {
+    injectStyle();
+    root.innerHTML = "";
+    root.classList.add("ex-player");
+
+    if (!examples || !examples.length) {
+      var miss = document.createElement("div");
+      miss.className = "ex-missing";
+      miss.textContent = "examples missing";
+      root.appendChild(miss);
+      return;
+    }
+
+    var state = { exIdx: 0, stepIdx: 0 };
+
+    var tabs = document.createElement("div");
+    tabs.className = "ex-tabs";
+
+    var title = document.createElement("div");
+    title.className = "ex-title";
+
+    var blurb = document.createElement("div");
+    blurb.className = "ex-blurb";
+
+    var watts = document.createElement("div");
+    watts.className = "ex-watts";
+
+    var meta = document.createElement("div");
+    meta.className = "ex-meta";
+
+    var lanes = document.createElement("div");
+    lanes.className = "ex-lanes";
+
+    var chips = document.createElement("div");
+    chips.className = "ex-chips";
+
+    var stayChip = document.createElement("div");
+    stayChip.className = "ex-chip";
+
+    var chosenChip = document.createElement("div");
+    chosenChip.className = "ex-chip chosen";
+
+    chips.appendChild(stayChip);
+    chips.appendChild(chosenChip);
+
+    var nav = document.createElement("div");
+    nav.className = "ex-nav";
+
+    var backBtn = document.createElement("button");
+    backBtn.type = "button";
+    backBtn.textContent = "Back";
+
+    var counter = document.createElement("span");
+    counter.className = "ex-counter";
+
+    var nextBtn = document.createElement("button");
+    nextBtn.type = "button";
+    nextBtn.textContent = "Next";
+
+    nav.appendChild(backBtn);
+    nav.appendChild(counter);
+    nav.appendChild(nextBtn);
+
+    for (var i = 0; i < examples.length; i++) {
+      (function (idx) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ex-tab";
+        btn.textContent = examples[idx].name || examples[idx].id || "Example " + (idx + 1);
+        btn.addEventListener("click", function () {
+          state.exIdx = idx;
+          state.stepIdx = 0;
+          render();
+        });
+        tabs.appendChild(btn);
+      })(i);
+    }
+
+    backBtn.addEventListener("click", function () {
+      if (state.stepIdx > 0) {
+        state.stepIdx -= 1;
+        render();
+      }
+    });
+
+    nextBtn.addEventListener("click", function () {
+      var ex = examples[state.exIdx];
+      var n = (ex.steps && ex.steps.length) || 0;
+      if (state.stepIdx < n - 1) {
+        state.stepIdx += 1;
+        render();
+      }
+    });
+
+    root.appendChild(tabs);
+    root.appendChild(title);
+    root.appendChild(blurb);
+    root.appendChild(watts);
+    root.appendChild(meta);
+    root.appendChild(lanes);
+    root.appendChild(chips);
+    root.appendChild(nav);
+
+    function render() {
+      var ex = examples[state.exIdx];
+      var steps = ex.steps || [];
+      var step = steps[state.stepIdx] || {};
+      var n = steps.length || 1;
+      var k = steps.length ? state.stepIdx + 1 : 0;
+
+      var tabBtns = tabs.children;
+      for (var t = 0; t < tabBtns.length; t++) {
+        if (t === state.exIdx) tabBtns[t].classList.add("selected");
+        else tabBtns[t].classList.remove("selected");
+      }
+
+      title.textContent = ex.name || ex.id || "";
+      blurb.textContent = ex.blurb || "";
+
+      watts.textContent = fmtInt(peakAfter(step)) + " W";
+
+      meta.textContent =
+        "aligned " +
+        fmtInt(ex.aligned) +
+        " · half delay " +
+        fmtInt(ex.half) +
+        " · price ends at " +
+        fmtInt(ex.price);
+
+      renderLanes(lanes, ex, step);
+
+      stayChip.textContent = "Stay " + fmtInt(step.stayCost);
+      var chosenPhi = step.chosen != null ? step.chosen : "";
+      chosenChip.textContent =
+        "Chosen φ " +
+        (chosenPhi === "" ? "—" : fmt1(chosenPhi)) +
+        " · " +
+        fmtInt(step.chosenCost);
+
+      counter.textContent = k + " / " + n;
+      backBtn.disabled = state.stepIdx <= 0;
+      nextBtn.disabled = state.stepIdx >= n - 1 || !steps.length;
+    }
+
+    function jumpPrintFrame() {
+      var ex = examples[state.exIdx];
+      var n = (ex.steps && ex.steps.length) || 0;
+      if (n > 0) {
+        state.stepIdx = n - 1;
+        render();
+      }
+    }
+
+    if (/(?:^|[?&])print=1(?:&|$)/.test(location.search)) {
+      jumpPrintFrame();
+    }
+    window.addEventListener("beforeprint", jumpPrintFrame);
+
+    render();
+  }
+
+  window.ExamplePlayer = { mount: mount };
+})();
+
+</script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"></script>
+<script>
+renderMathInElement(document.body, {
+  delimiters: [
+    {left: "\\[", right: "\\]", display: true},
+    {left: "\\(", right: "\\)", display: false}
+  ],
+  throwOnError: false
+});
+ExamplePlayer.mount(document.getElementById("more"), window.EXAMPLES);
+</script>
+<script>
+var STEPS = [{"round":1,"job":0,"chosen":2,"before":5600,"after":5040,"phis":[2,0,0,0,0,0,0,0],"c0":700,"c2":138,"c4":644},{"round":1,"job":1,"chosen":2,"before":5040,"after":4480,"phis":[2,2,0,0,0,0,0,0],"c0":700,"c2":144,"c4":675},{"round":1,"job":2,"chosen":2,"before":4480,"after":3920,"phis":[2,2,2,0,0,0,0,0],"c0":699,"c2":150,"c4":695},{"round":1,"job":3,"chosen":2,"before":3920,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":627,"c2":225,"c4":637},{"round":1,"job":4,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":1,"job":5,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":1,"job":6,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":1,"job":7,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":2,"job":0,"chosen":2,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":643,"c2":209,"c4":621},{"round":2,"job":1,"chosen":2,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":643,"c2":209,"c4":621},{"round":2,"job":2,"chosen":2,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":643,"c2":209,"c4":621},{"round":2,"job":3,"chosen":2,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":643,"c2":209,"c4":621},{"round":2,"job":4,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":2,"job":5,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":2,"job":6,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214},{"round":2,"job":7,"chosen":0,"before":3360,"after":3360,"phis":[2,2,2,2,0,0,0,0],"c0":200,"c2":655,"c4":214}];
+var OPEN = {preview:true, job:0, phis:[0,0,0,0,0,0,0,0], after:5600, c0:700, c2:138, c4:644};
+var i = 0;
+var SPAN = 36;
+
+function segs(phi) {
+  var a = Math.max(0, phi), b = Math.min(SPAN, phi + 32), pts = [a, b], k, t;
+  for (k = -4; k <= 20; k++) { t = phi + k * 2; if (t > a && t < b) pts.push(t); }
+  pts.sort(function (x, y) { return x - y; });
+  var out = [], s;
+  for (k = 0; k < pts.length - 1; k++) {
+    if (pts[k + 1] - pts[k] < 1e-6) continue;
+    var mid = (pts[k] + pts[k + 1]) / 2;
+    var u = ((mid - phi) % 4 + 4) % 4;
+    s = out[out.length - 1];
+    if (s && s.hi === (u < 2) && Math.abs(s.t1 - pts[k]) < 1e-6) s.t1 = pts[k + 1];
+    else out.push({ t0: pts[k], t1: pts[k + 1], hi: u < 2 });
+  }
+  return out;
+}
+
+function show() {
+  var s = i === 0 ? OPEN : STEPS[i - 1];
+  var moved = !s.preview && s.after !== s.before;
+  if (s.preview) {
+    document.getElementById("title").innerHTML = "Nobody has moved yet.";
+    document.getElementById("lead").textContent = "All eight GPUs compute at the same time, so the feeder is 5600 W. Job 0 is the first to look. Waiting 2 seconds is cheaper, because the other seven are then communicating.";
+  } else {
+    document.getElementById("title").innerHTML = moved
+      ? "Job " + s.job + " waits <em>2 seconds</em>."
+      : (s.round === 1
+          ? "Job " + s.job + " <em>stays</em>."
+          : "Job " + s.job + " is asked again. It <em>stays</em>.");
+    document.getElementById("lead").textContent = moved
+      ? "Its computing now happens while the others are communicating. The feeder falls from " + s.before + " W to " + s.after + " W."
+      : (s.round === 1
+          ? "Four are computing and four are communicating. Moving would cost more, so it stays. The feeder holds at " + s.after + " W."
+          : "Asked again. The same start is still cheapest. The feeder stays at " + s.after + " W.");
+  }
+  document.getElementById("watts").innerHTML = s.after + " <span>watts on the feeder</span>";
+
+  var html = "", j, g, list, phi, tag;
+  for (j = 0; j < 8; j++) {
+    phi = s.phis[j];
+    tag = phi === 0 ? "now" : ("waits " + phi + "s");
+    list = segs(phi);
+    html += '<div class="row' + (!s.preview && j === s.job ? " on" : "") + '"><span>Job ' + j + '</span><div class="track">';
+    for (g = 0; g < list.length; g++) {
+      html += '<i class="seg ' + (list[g].hi ? "hi" : "lo") + '" style="left:' +
+        (list[g].t0 / SPAN * 100) + "%;width:" + ((list[g].t1 - list[g].t0) / SPAN * 100) + '%"></i>';
+    }
+    html += '</div><span>' + tag + '</span></div>';
+  }
+  document.getElementById("lanes").innerHTML = html;
+
+  var opts = [["Start now", 0], ["Wait 2 seconds", 2], ["Wait 4 seconds", 4]];
+  var whys = s.preview
+    ? [
+        "The other seven are computing.",
+        "The other seven are communicating. Job 0 will pick this.",
+        "A longer wait. Job 0 will not pick this."
+      ]
+    : null;
+  html = "";
+  for (j = 0; j < opts.length; j++) {
+    var on = !s.preview && s.chosen === opts[j][1];
+    var why = whys ? whys[j] : (on ? "Picked." : "Not picked.");
+    html += '<div class="opt' + (on ? " on" : "") + '"><small>' + opts[j][0] + '</small><span class="why">' + why + '</span></div>';
+  }
+  document.getElementById("costs").innerHTML = html;
+  document.getElementById("count").textContent = (i + 1) + " / " + (STEPS.length + 1);
+}
+
+document.getElementById("next").onclick = function () { i = Math.min(STEPS.length, i + 1); show(); };
+document.getElementById("prev").onclick = function () { i = Math.max(0, i - 1); show(); };
+document.addEventListener("keydown", function (ev) {
+  if (ev.key === "ArrowRight") document.getElementById("next").click();
+  if (ev.key === "ArrowLeft") document.getElementById("prev").click();
+});
+show();
+</script>
+</body>
+</html>
